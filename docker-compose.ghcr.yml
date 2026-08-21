@@ -1,6 +1,6 @@
 services:
   watchlist:
-    build: .
+    image: ghcr.io/lancetm714/shopgoodwill-watchlist:latest
     container_name: goodwill-watchlist
     ports:
       - "6518:6518"

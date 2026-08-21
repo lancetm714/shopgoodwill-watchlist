@@ -33,6 +33,18 @@ docker compose up --build
 
 Open **http://localhost:6518**.
 
+### Docker from GHCR (prebuilt image)
+
+The image is published automatically to
+`ghcr.io/lancetm714/shopgoodwill-watchlist` on every push to `main`.
+
+```bash
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+Use this on a NAS or any Docker host without building from source. See
+[Deploying on a NAS](#deploying-on-a-nas).
+
 ### Run locally (no Docker)
 
 ```bash
@@ -43,6 +55,22 @@ python run.py
 Open **http://localhost:6518**.
 
 > The default port is `6518`. Override it with the `PORT` environment variable.
+
+---
+
+## Deploying on a NAS
+
+The `docker-compose.ghcr.yml` pulls the prebuilt image from GHCR, so no source
+code or build step is needed on the NAS.
+
+1. Create a project folder, e.g. `/volume1/docker/shopgoodwill-watchlist`.
+2. Inside it, place `docker-compose.ghcr.yml` and create an empty `data/` folder
+   (Docker bind-mounts often fail if the target folder doesn't already exist).
+3. In Synology **Container Manager → Project → Add**, point it at that folder,
+   then start the project.
+4. Open **http://<NAS-IP>:6518** and configure Telegram on the
+   **Settings** page — the token, chat ID, and intervals are saved into
+   `data/settings.json` on the NAS volume and persist across updates.
 
 ---
 
@@ -174,8 +202,10 @@ For Docker, copy `.env.example` to `.env`, fill in your values, then
 │   └── settings_store.py Settings persistence
 ├── extension/            Chrome / Edge / Firefox extension
 ├── data/                 Runtime data (git-ignored; created on first run)
+├── .github/workflows/    GHCR publish workflow (auto-push on main)
 ├── Dockerfile
 ├── docker-compose.yml
+├── docker-compose.ghcr.yml
 ├── .env.example
 └── requirements.txt
 ```
