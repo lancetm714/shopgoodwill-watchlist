@@ -1,117 +1,193 @@
-# Goodwill Watchlist — Local Dashboard + Browser Extension
+# ShopGoodwill Watchlist
 
-A ToS-safe watchlist for ShopGoodwill.com auctions. Add items you're watching,
-see a live countdown, and get alerted when an auction is about to end.
+A ToS-safe watchlist for ShopGoodwill.com auctions: add items you're watching,
+see a live countdown, and get a push to your phone when an auction is about to
+end.
 
-**Why "ToS-safe":** this tool does NOT scrape the site or use its internal API,
-and it does NOT automate bidding. End times are entered by you (or captured from
-the page you're already viewing, then confirmed by you). It only reads publicly
-displayed data and never sends or places bids.
+**Why "ToS-safe":** this tool does **not** scrape the site, use its internal
+API, or automate bidding. End times are entered by you (or captured from the
+page you're already viewing and confirmed by you). It only works with data you
+provide, and it never places or interferes with bids.
 
-## Parts
+---
 
-| Part | Purpose |
-|------|---------|
-| `app/` | Flask web dashboard (list form, live countdown grid, alerts). Data stored in `data/watchlist.json`. |
-| `extension/` | Chrome / Edge / Firefox extension. Adds a floating "Add to Watchlist" button on listing pages and sends the confirmed end time to your dashboard. |
+## Features
 
-## Dashboard
+- **Dashboard** — add items with a live, auto-sorted countdown; browser
+  notification + spoken alert when one is about to end.
+- **Browser extension** — one-click "Add to Watchlist" on any listing page, with
+  the end time auto-filled and confirmed before saving.
+- **Phone push (Telegram)** — get an alert 10–15 minutes before an item ends,
+  with the countdown refreshed in the message as it ticks down.
+- **Docker-ready** — runs in a single container; data and settings persist.
 
-### Run locally
+---
+
+## Quick start
+
+### Docker (recommended)
+
+```bash
+docker compose up --build
 ```
+
+Open **http://localhost:6518**.
+
+### Run locally (no Docker)
+
+```bash
 python -m pip install -r requirements.txt
 python run.py
 ```
-Open http://localhost:6518
 
-### Run with Docker
-```
-docker compose up --build
-```
-Open http://localhost:6518
+Open **http://localhost:6518**.
 
-### Usage
+> The default port is `6518`. Override it with the `PORT` environment variable.
+
+---
+
+## Dashboard usage
+
 1. Open a ShopGoodwill listing page and note its **ending time (Pacific Time)**.
 2. In the dashboard, paste the listing URL (optional), a label, the end time,
    and an alert threshold (default 10 minutes).
-3. The item shows a live countdown. When it crosses your threshold you get a
-   browser notification plus a spoken alert.
+3. The item appears as a card with a **live countdown**, sorted by soonest end.
+4. When an item crosses your threshold, you get a **browser notification** and a
+   **spoken alert**.
 
 End times without a timezone are interpreted as **Pacific Time** (the zone the
 site displays). You may also paste a UTC timestamp if present.
+
+---
 
 ## Browser extension
 
 Adds a floating **"Add to Watchlist"** button on `shopgoodwill.com/item/*`
 pages. Click it, confirm (or edit) the ending time shown on the page, and it's
-added to your dashboard in one click.
+added to your dashboard in one click — no copy/paste.
 
 ### Install (unpacked)
 
 **Chrome / Edge / Brave**
+
 1. Open the extensions page (`chrome://extensions` or `edge://extensions`).
-2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select the `extension/` folder.
+2. Turn on **Developer mode** (top-right).
+3. Click **Load unpacked** and select the `extension/` folder from this repo.
 
 **Firefox**
+
 1. Open `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on** and select `extension/manifest.json`.
-   (Temporary add-ons load until Firefox closes; see below for a permanent
-   signed/packaged option.)
+   (Temporary add-ons unload when Firefox closes; for a permanent install you'd
+   need a signed/packaged build.)
 
 ### Configure the dashboard URL
-Click the extension's toolbar icon, set the dashboard URL (default
-`http://localhost:6518`), and save. Make sure the dashboard is running.
 
-### Note on accuracy
+Click the extension's toolbar icon, set the dashboard URL (default
+`http://localhost:6518`), and save. Make sure the dashboard is running on that
+port first.
+
+> If you change the dashboard's port, update this URL too.
+
+### Accuracy note
+
 ShopGoodwill allows sellers to extend auctions or use a "soft close" in the
 final minutes. The end time is captured (and confirmed) at the moment you click
-Add; if the seller extends the auction afterward, re-run the button to refresh.
+**Add**; if the seller extends the auction afterward, click the button again to
+refresh.
+
+---
 
 ## Phone push notifications (Telegram)
 
-Get a push to your Android phone 10–15 minutes before an item ends. The backend
-polls your watchlist and sends a Telegram message once per item (no spam).
+Get a push to your Android phone when an item is about to end. The backend polls
+your watchlist and sends a Telegram message once per item (no spam), refreshing
+the countdown in the message as it ticks down.
 
-### Setup
-1. Create a bot with **@BotFather** on Telegram (send `/newbot`, pick a name).
-   It gives you a **bot token** like `123456:ABC...`.
-2. Get your **chat id**: message your bot once, then open
-   `https://api.telegram.org/bot<TOKEN>/getUpdates` — find `"chat":{"id":...}`.
-3. Set the environment variables and start the app:
+### 1. First-time: get your Token & Chat ID (one-time)
 
-   **Local:**
-   ```
-   set TELEGRAM_ENABLED=1
-   set TELEGRAM_BOT_TOKEN=<your token>
-   set TELEGRAM_CHAT_ID=<your chat id>
-   python run.py
-   ```
-   (Linux/macOS: use `export` instead of `set`.)
+1. In Telegram, message **@BotFather** and send `/newbot`. Follow the prompts to
+   name your bot — it returns a **bot token** like `123456789:AAbbCC...`.
+2. Message your new bot **once** (any message).
+3. Open
+   `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser and find
+   `"chat":{"id":...}` — that number is your **Chat ID**.
+   (If the result is empty `[]`, message your bot first and refresh.)
 
-   **Docker:** copy `.env.example` to `.env`, fill it in, then
-   `docker compose up --build` (compose reads `.env` automatically).
+### 2. Configure in the Settings page
 
-4. The dashboard shows a **Phone notification** status card confirming whether
-   notifications are on/off.
+1. Start the app and open the **Settings** page: **http://localhost:6518/settings**.
+2. Paste your **bot token** and **chat ID**.
+3. Adjust the **poll interval** (how often it checks, e.g. 30s) and the
+   **countdown update** (how often the message refreshes).
+4. Tick **Enable notifications**, then **Save**.
+5. Click **Send test notification** — you should receive a push on your phone.
+
+The dashboard also shows a **Phone notification** status card confirming
+whether notifications are on and how often it polls.
 
 ### How it works
-- Polls `data/watchlist.json` every `TELEGRAM_POLL_SECONDS` (default 30s).
-- When an item falls within its `alertMinutes` threshold (default per-item 10m),
-  it sends one Telegram message with the item name, time remaining, end time,
-  and a link — then marks it sent so it won't repeat.
-- The message's countdown is refreshed in place every `TELEGRAM_EDIT_SECONDS`
-  (default 30s, speeding up in the final minutes), so the "time remaining" stays
-  roughly current without reopening the dashboard.
-- Alerts only use the end times **you entered**; it never contacts
-  ShopGoodwill's site or API.
 
-The poll interval and countdown-refresh interval are configurable from the
-**Settings** page (http://localhost:6518/settings).
+- Polls the watchlist every **poll interval** (default 30s).
+- When an item falls within its alert window (default per-item 10m), it sends
+  one Telegram message with the item name, time remaining, end time, and a link,
+  then marks it sent so it won't repeat.
+- The message's countdown is refreshed in place every **countdown update**
+  seconds (faster in the final minutes).
+- Alerts use only the end times **you entered**; it never contacts ShopGoodwill's
+  site or API.
+
+> Tokens and chat IDs are stored locally in `data/settings.json`, which is
+> git-ignored and never committed.
+
+---
+
+## Configuration reference
+
+All of the above can also be set via environment variables (useful for Docker
+via a `.env` file). UI settings entered on the Settings page take precedence.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Dashboard port | `6518` |
+| `DATA_DIR` | Directory for `watchlist.json` / `settings.json` | `./data` |
+| `TELEGRAM_ENABLED` | Enable the Telegram notifier (`1`/`true`) | `0` |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | — |
+| `TELEGRAM_CHAT_ID` | Your Telegram chat ID | — |
+| `TELEGRAM_POLL_SECONDS` | How often the backend checks | `30` |
+| `TELEGRAM_EDIT_SECONDS` | How often the message countdown refreshes | `30` |
+
+For Docker, copy `.env.example` to `.env`, fill in your values, then
+`docker compose up --build` — compose reads `.env` automatically.
+
+---
+
+## Project structure
+
+```
+.
+├── app/                  Flask backend
+│   ├── templates/        Dashboard + Settings pages
+│   ├── static/           Frontend JS/CSS
+│   ├── routes.py         HTTP API
+│   ├── notifier.py       Telegram poller + sender
+│   └── settings_store.py Settings persistence
+├── extension/            Chrome / Edge / Firefox extension
+├── data/                 Runtime data (git-ignored; created on first run)
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+└── requirements.txt
+```
+
+---
 
 ## Notes / limitations
+
 - The extension reads the end time from the page content **you're already
   viewing** and always shows a confirmation dialog before sending. It does not
   silently extract data in the background.
+- Alerts reflect the end time as of when you added the item; if the seller
+  extends the auction, re-add (or edit) the item to refresh.
 - This is for personal, non-commercial tracking only, per ShopGoodwill's Terms
   of Use. Review the current Terms of Use before use.
