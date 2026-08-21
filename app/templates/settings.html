@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Goodwill Watchlist</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <nav class="topnav">
+      <a href="/" class="btn ghost">← Dashboard</a>
+      <h1>Settings</h1>
+    </nav>
+    <p class="tagline">Phone push notifications for when items are about to end.</p>
+  </header>
+
+  <section id="settings-section">
+    <div class="card">
+      <h2>Telegram notifications</h2>
+      <p class="hint" style="margin-top:0;">Backend checks every <b>poll interval</b> and refreshes the countdown in the message every <b>countdown update</b> seconds (faster in the final minutes). Sends once per item within its alert window, using only end times you entered — never ShopGoodwill's site or API.</p>
+
+      <div class="row">
+        <label>Telegram bot token
+          <input id="set-token" type="password" placeholder="123456789:AAbbCC...">
+        </label>
+        <label>Telegram chat ID
+          <input id="set-chat" type="text" placeholder="e.g. 123456789">
+        </label>
+      </div>
+      <div class="row">
+        <label>Poll interval (seconds)
+          <input id="set-poll" type="number" min="10" max="3600" value="30">
+        </label>
+        <label>Countdown update (seconds)
+          <input id="set-edit" type="number" min="5" max="600" value="30">
+        </label>
+        <label class="check">Enable notifications
+          <input id="set-enabled" type="checkbox">
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="save" class="btn primary">Save settings</button>
+        <button id="test" class="btn">Send test notification</button>
+      </div>
+      <p class="msg" id="msg"></p>
+
+      <hr style="margin:18px 0;border:none;border-top:1px solid var(--border);">
+
+      <h3 class="how-title">How to get your token &amp; chat ID</h3>
+      <ol class="how-list">
+        <li>In Telegram, message <b>@BotFather</b> and send <code>/newbot</code>. Follow the prompts to name your bot — it returns a <b>bot token</b> like <code>123456789:AAbb...</code>.</li>
+        <li>Message your new bot once (any message).</li>
+        <li>Open <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> in a browser and look for <code>"chat":{"id":...</code> — that number is your <b>chat ID</b>.</li>
+        <li>Paste both above and click <b>Save</b>, then <b>Send test notification</b>.</li>
+      </ol>
+    </div>
+
+    <div id="notify-status" class="card status-card" style="margin-top:16px;">Checking…</div>
+  </section>
+
+  <footer>
+    <p>Settings are stored locally in <code>data/settings.json</code>. The bot token is masked in the UI after saving.</p>
+  </footer>
+
+  <script src="/static/settings.js"></script>
+</body>
+</html>

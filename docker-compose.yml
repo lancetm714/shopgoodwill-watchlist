@@ -1,0 +1,15 @@
+services:
+  watchlist:
+    build: .
+    container_name: goodwill-watchlist
+    ports:
+      - "6518:6518"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_ENABLED=${TELEGRAM_ENABLED:-0}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - TELEGRAM_POLL_SECONDS=${TELEGRAM_POLL_SECONDS:-30}
+      - TELEGRAM_EDIT_SECONDS=${TELEGRAM_EDIT_SECONDS:-30}

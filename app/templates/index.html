@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Goodwill Watchlist</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Goodwill Watchlist</h1>
+    <p class="tagline">Live countdown + ending-soon alerts for items you're watching. Enter the end time from the listing page — nothing is scraped.</p>
+  </header>
+
+  <section id="add-form" class="card">
+    <h2>Track an item</h2>
+    <form id="item-form">
+      <div class="row">
+        <label>Listing URL
+          <input id="url" type="text" placeholder="https://shopgoodwill.com/item/123456789" autocomplete="off">
+        </label>
+        <label>Label
+          <input id="label" type="text" placeholder="Optional name, e.g. 'Leather jacket'" autocomplete="off">
+        </label>
+      </div>
+      <div class="row">
+        <label>End time (Pacific) <span class="hint">as shown on the listing page</span>
+          <input id="ends" type="datetime-local" required>
+        </label>
+        <label>Alert when <span class="hint">minutes left</span>
+          <input id="alert-min" type="number" min="1" max="1440" value="10">
+        </label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn primary">Add to watchlist</button>
+        <button type="button" class="btn" id="fill-now">Set end time to +1 day</button>
+      </div>
+    </form>
+    <p id="form-msg" class="msg"></p>
+  </section>
+
+  <section id="items-section">
+    <h2>Watchlist <span id="count" class="count"></span></h2>
+    <div id="items" class="grid"></div>
+    <p id="empty" class="empty">No items yet. Add one above.</p>
+  </section>
+
+  <section id="notify-section">
+    <h2>Phone notification</h2>
+    <div id="notify-status" class="card status-card">Checking…</div>
+    <p class="hint" style="margin-top:6px;">Get a Telegram push 10–15 minutes before an auction ends. <a href="/settings" class="btn ghost" style="display:inline-block;padding:6px 12px;">Configure in Settings →</a></p>
+  </section>
+
+  <footer>
+    <p>All times shown in your local browser time. End times you enter are interpreted as Pacific Time (PT).</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

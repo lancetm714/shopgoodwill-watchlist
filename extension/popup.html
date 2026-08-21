@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin: 0; font: 13px/1.4 system-ui, sans-serif; width: 320px; color: #1f2328; }
+    .wrap { padding: 16px; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    p.sub { color: #6b7280; margin: 0 0 12px; font-size: 12px; }
+    label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 12px; color: #6b7280; margin-bottom: 12px; }
+    input[type=text] { padding: 8px 10px; border: 1px solid #e3e6ea; border-radius: 8px; font-size: 13px; }
+    button { padding: 8px 14px; border-radius: 8px; border: 1px solid #e3e6ea; background: #0b5cad; color: #fff; font-weight: 600; cursor: pointer; width: 100%; }
+    button:hover { filter: brightness(1.08); }
+    .note { font-size: 12px; color: #9aa0a6; margin-top: 12px; line-height: 1.4; }
+    .msg { min-height: 1.2em; margin-top: 8px; font-size: 12px; color: #6b7280; }
+    .msg.ok { color: #237a3a; }
+    .msg.err { color: #c0392b; }
+    hr { border: none; border-top: 1px solid #eef0f2; margin: 12px 0; }
+    .how { font-size: 12px; color: #444; }
+    .how li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Goodwill Watchlist Helper</h1>
+    <p class="sub">Adds listings you open to your Watchlist dashboard.</p>
+
+    <label>Dashboard URL
+      <input id="url" type="text" placeholder="http://localhost:6518">
+    </label>
+    <button id="save">Save</button>
+    <div class="msg" id="msg"></div>
+
+    <hr>
+    <ol class="how">
+      <li>Open a ShopGoodwill item page (shopgoodwill.com/item/...).</li>
+      <li>Click the floating <b>Add to Watchlist</b> button.</li>
+      <li>Confirm the ending time shown on the page, then click <b>Add</b>.</li>
+    </ol>
+    <div class="note">Make sure the Watchlist app is running at the dashboard URL above.</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

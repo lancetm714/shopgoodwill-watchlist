@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Goodwill Watchlist Helper",
+  "version": "1.0.0",
+  "description": "Add items from a ShopGoodwill listing page to your local Goodwill Watchlist dashboard with one click. Reads the end time you're already viewing and lets you confirm before sending.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:6518/*", "http://127.0.0.1:6518/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://shopgoodwill.com/item/*", "https://www.shopgoodwill.com/item/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Goodwill Watchlist Helper",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
