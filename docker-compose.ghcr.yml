@@ -5,5 +5,5 @@ services:
     ports:
       - "6518:6518"
     volumes:
-      - ./data:/app/data
+      - /volume1/docker/shopgoodwill-watchlist/data:/app/data
     restart: unless-stopped
