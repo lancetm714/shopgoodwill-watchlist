@@ -4,7 +4,11 @@
   "version": "1.0.0",
   "description": "Add items from a ShopGoodwill listing page to your local Goodwill Watchlist dashboard with one click. Reads the end time you're already viewing and lets you confirm before sending.",
   "permissions": ["storage"],
-  "host_permissions": ["http://localhost:6518/*", "http://127.0.0.1:6518/*"],
+  "host_permissions": [
+    "http://localhost:6518/*",
+    "http://127.0.0.1:6518/*",
+    "http://lmmedia.tail156d5.ts.net:6518/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

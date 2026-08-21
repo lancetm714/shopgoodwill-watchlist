@@ -279,7 +279,7 @@
       try {
         const ok = await sendToBackground(payload);
         if (ok) { setMsg("Added to your watchlist.", "gww-ok"); setTimeout(() => overlay.remove(), 1100); }
-        else setMsg("Could not reach your dashboard. Is it running at localhost:6518?", "gww-error");
+        else setMsg("Could not reach your dashboard. Is your dashboard reachable at http://lmmedia.tail156d5.ts.net:6518?", "gww-error");
       } catch (e) {
         setMsg("Error: " + e.message, "gww-error");
       }
