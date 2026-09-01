@@ -11,9 +11,16 @@ log = logging.getLogger("watchlist.notifier")
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
-# Track which items have already had their alert sent, so we only notify once.
-# Persisted to disk so a restart does not re-send (or silently miss) alerts.
-_sent_alerts = set()
+# Tiers of reminders for each item, in the order they fire as time runs out:
+#   alert  -> first heads-up when the item enters its configured alert window
+#             (and becomes the live countdown message).
+#   nudge  -> final-minutes "bid now" push, sent once when very little time is left.
+#   ended  -> distinct notification that the auction has now passed its end time.
+# Persisted to disk so restarts don't re-fire or silently miss a tier.
+_REMINDER_TIERS = ("alert", "nudge", "ended")
+
+# item_id -> set of tier keys already sent.
+_sent_tiers = {}
 _lock = threading.Lock()
 
 _SENT_FILE = os.path.join(
@@ -25,14 +32,25 @@ _SENT_FILE = os.path.join(
 
 
 def _load_sent():
+    result = {}
     try:
         with open(_SENT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        if isinstance(data, list):
-            return set(data)
     except (OSError, json.JSONDecodeError):
-        pass
-    return set()
+        return result
+    # Backwards-compatible: an old list of sent item ids => "alert" tier already done.
+    if isinstance(data, list):
+        for item_id in data:
+            result[str(item_id)] = {"alert"}
+        return result
+    if isinstance(data, dict):
+        for item_id, value in data.items():
+            if isinstance(value, list):
+                result[str(item_id)] = set(value)
+            else:
+                result[str(item_id)] = {"alert"}
+        return result
+    return result
 
 
 def _save_sent():
@@ -41,15 +59,15 @@ def _save_sent():
         os.makedirs(data_dir, exist_ok=True)
         tmp = _SENT_FILE + ".tmp"
         with _lock:
-            snapshot = set(_sent_alerts)
+            snapshot = {k: sorted(v) for k, v in _sent_tiers.items()}
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(sorted(snapshot), f)
+            json.dump(snapshot, f)
         os.replace(tmp, _SENT_FILE)
     except OSError:
         log.warning("Could not persist sent alerts to %s", _SENT_FILE)
 
 
-_sent_alerts |= _load_sent()
+_sent_tiers = _load_sent()
 
 # Live countdown messages: item_id -> {message_id, end_ts, last_edit_ts}
 _live_messages = {}
@@ -147,15 +165,26 @@ def _edit_message(message_id, message, parse_mode="HTML"):
         return False
 
 
-def _mark_sent(item_id):
+def _mark_tier(item_id, tier):
+    if tier not in _REMINDER_TIERS:
+        raise ValueError(f"unknown tier {tier!r}")
     with _lock:
-        _sent_alerts.add(item_id)
+        _sent_tiers.setdefault(str(item_id), set()).add(tier)
     _save_sent()
 
 
-def already_sent(item_id):
+def tier_sent(item_id, tier):
     with _lock:
-        return item_id in _sent_alerts
+        return tier in _sent_tiers.get(str(item_id), set())
+
+
+def _mark_sent(item_id):
+    # Backwards-compatible helper: marking "sent" means the first alert fired.
+    _mark_tier(item_id, "alert")
+
+
+def already_sent(item_id):
+    return tier_sent(item_id, "alert")
 
 
 def _fmt_countdown(seconds_left):
@@ -207,9 +236,34 @@ def _unregister_live(item_id):
         _live_messages.pop(item_id, None)
 
 
+def _item_label(item):
+    item_id = str(item.get("id", ""))
+    return item.get("label") or (f"Item {item_id}" if item_id else "An item")
+
+
+def _fmt_end_pt(end):
+    return end.astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def _build_nudge_msg(label, seconds_left, end, url):
+    msg = (f"\U0001F534 <b>Bid now:</b> {label}\n"
+           f"\U000023F1 {_fmt_countdown(seconds_left)} before the auction ends\n"
+           f"Ends {_fmt_end_pt(end)}")
+    if url:
+        msg += f"\n\U0001F517 <a href=\"{url}\">Open listing</a>"
+    return msg
+
+
+def _build_ended_msg(label, end, url):
+    msg = (f"\U00002753 <b>Auction ended:</b> {label}\n"
+           f"Ended at {_fmt_end_pt(end)}")
+    if url:
+        msg += f"\n\U0001F517 <a href=\"{url}\">Open listing</a>"
+    return msg
+
+
 def _check_once():
     now = datetime.now(timezone.utc)
-    now_ts = now.timestamp()
     for item in _load_watchlist():
         try:
             end = datetime.fromisoformat(item["endsAtIso"])
@@ -222,22 +276,42 @@ def _check_once():
         threshold = int(item.get("alertMinutes", 10) or 10)
 
         item_id = str(item.get("id", ""))
-        # Alert when within threshold, still in the future.
-        if 0 < seconds_left and minutes_left <= threshold:
-            if not already_sent(item_id):
-                label = item.get("label") or (f"Item {item_id}" if item_id else "An item")
-                url = item.get("url")
-                msg = _build_msg(label, seconds_left, end, url)
-                message_id = _send_message(msg)
-                if message_id is not None:
-                    _mark_sent(item_id)
-                    _register_live(item_id, message_id, end.timestamp())
-                    log.info("Alert sent for item %s (%s)", item_id, label)
-        # If it has ended, mark as sent so we don't alert again on an ended item
-        # that briefly sits within a threshold due to timezone edge cases.
-        elif seconds_left <= 0:
-            _mark_sent(item_id)
+        label = _item_label(item)
+        url = item.get("url")
+        end_ts = end.timestamp()
+
+        # Tier "ended": the auction has passed its end time.
+        if seconds_left <= 0:
             _unregister_live(item_id)
+            if not tier_sent(item_id, "ended"):
+                _send_message(_build_ended_msg(label, end, url))
+                _mark_tier(item_id, "ended")
+                log.info("Ended notice sent for item %s (%s)", item_id, label)
+            continue
+
+        # Tier "nudge": final-minutes "bid now" push.
+        if not tier_sent(item_id, "nudge") and seconds_left <= _nudge_seconds():
+            _send_message(_build_nudge_msg(label, seconds_left, end, url))
+            _mark_tier(item_id, "nudge")
+            log.info("Nudge sent for item %s (%s)", item_id, label)
+
+        # Tier "alert": first heads-up within the configured window, which also
+        # becomes the live countdown message.
+        if minutes_left <= threshold and not tier_sent(item_id, "alert"):
+            msg = _build_msg(label, seconds_left, end, url)
+            message_id = _send_message(msg)
+            if message_id is not None:
+                _mark_tier(item_id, "alert")
+                _register_live(item_id, message_id, end_ts)
+                log.info("Alert sent for item %s (%s)", item_id, label)
+
+
+def _nudge_seconds():
+    # Final-minutes nudge window. Configurable via env for power users.
+    try:
+        return float(os.environ.get("TELEGRAM_NUDGE_SECONDS", "120"))
+    except (TypeError, ValueError):
+        return 120.0
 
 
 def _update_live_messages():

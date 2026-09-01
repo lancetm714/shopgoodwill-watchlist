@@ -3,11 +3,20 @@ import json
 import threading
 import time
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, jsonify, request, render_template
 
 bp = Blueprint("main", __name__)
+
+# Pacific Time with correct DST handling (America/Los_Angeles handles both PST
+# and PDT), so end times stay correct year-round instead of a fixed -7 offset.
+def _pt_zone():
+    try:
+        return ZoneInfo("America/Los_Angeles")
+    except Exception:
+        return timezone.utc
 
 
 @bp.after_request
@@ -26,8 +35,6 @@ WATCH_FILE = os.path.join(DATA_DIR, "watchlist.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 _lock = threading.Lock()
-
-PT_OFFSET = -7  # Pacific Time standard. Use fixed offset; see parse note below.
 
 
 def _now_pt():
@@ -76,7 +83,7 @@ def _parse_iso(value):
 
     if dt.tzinfo is None:
         if not has_tz:
-            pt = timezone(timedelta(hours=PT_OFFSET))
+            pt = _pt_zone()
             dt = dt.replace(tzinfo=pt)
         else:
             dt = dt.replace(tzinfo=timezone.utc)

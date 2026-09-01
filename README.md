@@ -157,10 +157,17 @@ whether notifications are on and how often it polls.
 ### How it works
 
 - Polls the watchlist every **poll interval** (default 30s).
-- When an item falls within its alert window (default per-item 10m), it sends
-  one Telegram message with the item name, time remaining, end time, and a link,
-  then marks it sent so it won't repeat.
-- The message's countdown is refreshed in place every **countdown update**
+- Alerts escalate in three steps so you don't miss an auction:
+  1. **Ending soon** — when an item enters its alert window (default per-item
+     10m), it sends a message with the item name, time remaining, end time, and a
+     link, then keeps refreshing that message's countdown in place.
+  2. **Bid now** — a final-minutes extra push (default: inside the last 2
+     minutes) in case the first alert was missed.
+  3. **Auction ended** — a distinct notice once the stored end time has passed,
+     instead of silently dropping the item.
+- Each step fires only once per item, and that state is persisted to disk so a
+  restart won't re-send or skip a step.
+- The live message's countdown is refreshed in place every **countdown update**
   seconds (faster in the final minutes).
 - Alerts use only the end times **you entered**; it never contacts ShopGoodwill's
   site or API.
@@ -184,6 +191,7 @@ via a `.env` file). UI settings entered on the Settings page take precedence.
 | `TELEGRAM_CHAT_ID` | Your Telegram chat ID | — |
 | `TELEGRAM_POLL_SECONDS` | How often the backend checks | `30` |
 | `TELEGRAM_EDIT_SECONDS` | How often the message countdown refreshes | `30` |
+| `TELEGRAM_NUDGE_SECONDS` | Window (seconds before end) for the "bid now" push | `120` |
 
 For Docker, copy `.env.example` to `.env`, fill in your values, then
 `docker compose up --build` — compose reads `.env` automatically.
