@@ -16,4 +16,4 @@ RUN mkdir -p /app/data
 
 EXPOSE 6518
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-6518} --workers 2 run:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-6518} --workers 1 run:app"]

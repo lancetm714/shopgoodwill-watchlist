@@ -12,8 +12,44 @@ log = logging.getLogger("watchlist.notifier")
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
 # Track which items have already had their alert sent, so we only notify once.
+# Persisted to disk so a restart does not re-send (or silently miss) alerts.
 _sent_alerts = set()
 _lock = threading.Lock()
+
+_SENT_FILE = os.path.join(
+    os.environ.get(
+        "DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data")
+    ),
+    "sent_alerts.json",
+)
+
+
+def _load_sent():
+    try:
+        with open(_SENT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return set(data)
+    except (OSError, json.JSONDecodeError):
+        pass
+    return set()
+
+
+def _save_sent():
+    data_dir = os.path.dirname(_SENT_FILE)
+    try:
+        os.makedirs(data_dir, exist_ok=True)
+        tmp = _SENT_FILE + ".tmp"
+        with _lock:
+            snapshot = set(_sent_alerts)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(sorted(snapshot), f)
+        os.replace(tmp, _SENT_FILE)
+    except OSError:
+        log.warning("Could not persist sent alerts to %s", _SENT_FILE)
+
+
+_sent_alerts |= _load_sent()
 
 # Live countdown messages: item_id -> {message_id, end_ts, last_edit_ts}
 _live_messages = {}
@@ -114,6 +150,7 @@ def _edit_message(message_id, message, parse_mode="HTML"):
 def _mark_sent(item_id):
     with _lock:
         _sent_alerts.add(item_id)
+    _save_sent()
 
 
 def already_sent(item_id):
@@ -275,40 +312,83 @@ def _run():
         time.sleep(_config()["poll_seconds"])
 
 
-def _pid_alive(pid):
+def _pid_alive(pid, start_marker=""):
+    """Return True only if <pid> is alive AND is (or was started at) the same
+    process that wrote the lock. A bare kill(pid, 0) unsafe inside a container,
+    where gunicorn worker PIDs are low and get recycled: after a restart an old,
+    dead PID can now belong to an unrelated live process, making the lock look
+    permanently owned and silently disabling the notifier.
+
+    start_marker is the process start time (from /proc) recorded in the lock; if
+    provided and readable, we require the /proc start time to match so a recycled
+    PID is not mistaken for the old owner.
+    """
     try:
         os.kill(pid, 0)
-        return True
     except OSError:
-        return False
+        return False  # no such process
+    # PID is alive now. If we recorded its start time, verify it still matches.
+    if start_marker:
+        try:
+            with open(f"/proc/{pid}/stat", "r", encoding="utf-8") as f:
+                stat = f.read()
+                # field 22 is the process start time (in clock ticks since boot);
+                # it appears after the comm field, which may contain spaces/parens.
+                close = stat.rfind(")")
+                fields = stat[close + 2:].split()
+                if len(fields) >= 1 and fields[0] != start_marker:
+                    return False  # PID reused by a different process
+        except OSError:
+            # /proc unavailable (e.g. non-Linux); fall back to liveness only.
+            pass
+    return True
+
+
+def _own_start_marker():
+    # Field 22 of /proc/self/stat is the start time of this process. Reused PIDs
+    # have different start times, so this lets us tell a stale lock from a live one.
+    try:
+        with open("/proc/self/stat", "r", encoding="utf-8") as f:
+            stat = f.read()
+            close = stat.rfind(")")
+            return stat[close + 2:].split()[0]
+    except OSError:
+        return ""
 
 
 def start():
     # Run the notifier in only one process (important under gunicorn with
-    # multiple workers). Claim a lock file that records the owning PID, and
-    # reclaim it if the previous owner is no longer alive (handles hard kills).
+    # multiple workers). Claim a lock file that records the owning PID + start
+    # time, and reclaim it if the previous owner stopped (handles hard kills and
+    # recycled PIDs inside containers).
     from . import settings_store
     lock_path = os.path.join(settings_store.DATA_DIR, "notifier.lock")
     my_pid = os.getpid()
+    my_marker = _own_start_marker()
 
-    fd = None
     if os.path.exists(lock_path):
+        old_marker = ""
         try:
             with open(lock_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
-            old_pid = int(content) if content.isdigit() else -1
-            if old_pid == my_pid or _pid_alive(old_pid):
+            parts = content.split()
+            old_pid = int(parts[0]) if parts and parts[0].isdigit() else -1
+            old_marker = parts[1] if len(parts) > 1 else ""
+            if old_pid == my_pid or _pid_alive(old_pid, old_marker):
                 log.info("Notifier already active (pid %s); skipping.", old_pid)
                 return
             log.info("Reclaiming stale notifier lock (pid %s gone).", old_pid)
             os.remove(lock_path)
-        except ValueError:
-            os.remove(lock_path)
+        except (ValueError, OSError):
+            try:
+                os.remove(lock_path)
+            except OSError:
+                pass
 
     try:
         fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         fileobj = os.fdopen(fd, "w")
-        fileobj.write(str(my_pid))
+        fileobj.write(f"{my_pid} {my_marker}")
         fileobj.flush()
     except OSError:
         log.info("Could not acquire notifier lock; another process owns it.")
