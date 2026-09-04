@@ -408,9 +408,10 @@ def _pid_alive(pid, start_marker=""):
                 stat = f.read()
                 # field 22 is the process start time (in clock ticks since boot);
                 # it appears after the comm field, which may contain spaces/parens.
+                # After stripping "pid (comm) " the start time is at index 19.
                 close = stat.rfind(")")
                 fields = stat[close + 2:].split()
-                if len(fields) >= 1 and fields[0] != start_marker:
+                if len(fields) > 19 and fields[19] != start_marker:
                     return False  # PID reused by a different process
         except OSError:
             # /proc unavailable (e.g. non-Linux); fall back to liveness only.
@@ -425,7 +426,8 @@ def _own_start_marker():
         with open("/proc/self/stat", "r", encoding="utf-8") as f:
             stat = f.read()
             close = stat.rfind(")")
-            return stat[close + 2:].split()[0]
+            fields = stat[close + 2:].split()
+            return fields[19] if len(fields) > 19 else ""
     except OSError:
         return ""
 
@@ -448,11 +450,23 @@ def start():
             parts = content.split()
             old_pid = int(parts[0]) if parts and parts[0].isdigit() else -1
             old_marker = parts[1] if len(parts) > 1 else ""
-            if old_pid == my_pid or _pid_alive(old_pid, old_marker):
+            if old_pid == my_pid:
+                # Same PID as us: either we already started in this process, or
+                # the PID was recycled from a previous run (common in containers,
+                # where PIDs are allocated deterministically). Use the process
+                # start time to tell the two apart.
+                if old_marker and my_marker and old_marker != my_marker:
+                    log.info("Reclaiming stale notifier lock (pid %s recycled).", old_pid)
+                    os.remove(lock_path)
+                else:
+                    log.info("Notifier already active (pid %s); skipping.", old_pid)
+                    return
+            elif _pid_alive(old_pid, old_marker):
                 log.info("Notifier already active (pid %s); skipping.", old_pid)
                 return
-            log.info("Reclaiming stale notifier lock (pid %s gone).", old_pid)
-            os.remove(lock_path)
+            else:
+                log.info("Reclaiming stale notifier lock (pid %s gone).", old_pid)
+                os.remove(lock_path)
         except (ValueError, OSError):
             try:
                 os.remove(lock_path)
