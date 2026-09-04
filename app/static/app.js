@@ -142,7 +142,7 @@ form.addEventListener("submit", async (e) => {
   const payload = {
     url: urlInput.value.trim(),
     label: labelInput.value.trim(),
-    endsAt: ends.replace("T", " "),
+    endsAt: ptToUtcIso(endsInput.value),
     alertMinutes: Number(alertMinInput.value) || 10,
   };
   try {
@@ -194,7 +194,9 @@ itemsEl.addEventListener("click", async (e) => {
 });
 
 fillNowBtn.addEventListener("click", () => {
-  const d = new Date(Date.now() + 24 * 3600 * 1000);
+  const now = new Date();
+  const om = pacificOffsetMinutes(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes());
+  const d = new Date(now.getTime() + 24 * 3600 * 1000 + om * 60000);
   d.setSeconds(0, 0);
   endsInput.value = toLocalInput(d);
 });
@@ -202,6 +204,35 @@ fillNowBtn.addEventListener("click", () => {
 function toLocalInput(d) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function secondSundayUTC(y, m) {
+  const first = new Date(Date.UTC(y, m, 1));
+  const day = first.getUTCDay();
+  const daysToSunday = (7 - day) % 7;
+  return Date.UTC(y, m, 1 + daysToSunday + 7, 10);
+}
+
+function pacificOffsetMinutes(y, mo, da, hh, mm) {
+  const spring = secondSundayUTC(y, 2);
+  const firstNov = new Date(Date.UTC(y, 10, 1));
+  const novDay = firstNov.getUTCDay();
+  const fall = Date.UTC(y, 10, 1 + ((7 - novDay) % 7), 10);
+  const wallUtc = Date.UTC(y, mo - 1, da, hh, mm);
+  return (wallUtc >= spring && wallUtc < fall) ? -420 : -480;
+}
+
+function ptToUtcIso(localvalue) {
+  // 'localvalue' is a datetime-local string entered as PACIFIC wall-clock time.
+  // Return the equivalent exact UTC ISO-8601 string with 'Z'.
+  const m = (localvalue || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) return localvalue;
+  const y = +m[1], mo = +m[2], da = +m[3], hh = +m[4], mm = +m[5];
+  const om = pacificOffsetMinutes(y, mo, da, hh, mm);
+  const utcMs = Date.UTC(y, mo - 1, da, hh, mm) - om * 60000;
+  const d = new Date(utcMs);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00Z`;
 }
 
 function setMsg(text, kind) {

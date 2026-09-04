@@ -78,16 +78,16 @@
     return m ? m[0] : null;
   }
 
-  // Convert a date token like "8/22/2026" plus a time token like "06:10:00 PM"
-  // to a datetime-local value ("YYYY-MM-DDTHH:MM").
-  function toLocalInputToken(dateToken, timeToken) {
+  // ShopGoodwill displays end times in Pacific Time. Parse a date token like
+  // "8/22/2026" plus a time token like "06:10:00 PM" into {mo,da,yr,hour,minute}
+  // WITHOUT assuming any timezone.
+  function parseDateTimeToken(dateToken, timeToken) {
     if (!dateToken) return null;
     let trimmed = dateToken.trim();
     const m = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/i);
     if (!m) return null;
     let mo = +m[1], da = +m[2], yr = +m[3];
     if (yr < 100) yr += 2000;
-    const pad = (n) => String(n).padStart(2, "0");
 
     let hour = 12, minute = 0;
     if (timeToken) {
@@ -100,7 +100,65 @@
         minute = mm;
       }
     }
-    return `${yr}-${pad(mo)}-${pad(da)}T${pad(hour)}:${pad(minute)}`;
+    return { mo, da, yr, hour, minute };
+  }
+
+  // Format a date+time plus a fixed minute offset from UTC as ISO-8601 with a
+  // numeric offset ("YYYY-MM-DDTHH:MM:SS±HH:MM"). The UTC offset is derived
+  // from America/Los_Angeles for the given wall-clock time, so it is DST-safe.
+  function toIsoWithPacificOffset(parts) {
+    if (!parts) return null;
+    const pad = (n) => String(n).padStart(2, "0");
+    // Determine whether Pacific was on PDT (UTC-7) or PST (UTC-8) at this date.
+    const offsetMinutes = pacificOffsetMinutes(parts);
+    const sign = offsetMinutes < 0 ? "-" : "+";
+    const offAbs = Math.abs(offsetMinutes);
+    const offH = pad(Math.floor(offAbs / 60));
+    const offM = pad(offAbs % 60);
+    return `${parts.yr}-${pad(parts.mo)}-${pad(parts.da)}T${pad(parts.hour)}:${pad(parts.minute)}:00${sign}${offH}:${offM}`;
+  }
+
+  // Convert the parsed date/time (wall clock in Pacific Time) to an exact UTC
+  // ISO-8601 string with a trailing "Z". This is unambiguous regardless of the
+  // viewer's browser timezone.
+  function toUtcIso(parts) {
+    if (!parts) return null;
+    const pad = (n) => String(n).padStart(2, "0");
+    const offsetMinutes = pacificOffsetMinutes(parts);
+    // Build a Date from components as UTC, then shift by the Pacific offset to
+    // land on the true wall-clock time.
+    const wallMs = Date.UTC(parts.yr, parts.mo - 1, parts.da, parts.hour, parts.minute);
+    const utcMs = wallMs - offsetMinutes * 60000;
+    const d = new Date(utcMs);
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00Z`;
+  }
+
+  // Return the UTC offset (minutes) that America/Los_Angeles was/will be at for
+  // the given wall-clock date+time. PDT = -420 (UTC-7), PST = -480 (UTC-8).
+  function pacificOffsetMinutes(parts) {
+    // DST in the US runs from the second Sunday in March to the first Sunday in
+    // November. Compute the transition instants for the given year.
+    function secondSunday(y, m) {
+      const first = new Date(Date.UTC(y, m, 1));
+      const day = first.getUTCDay();
+      const daysToSunday = (7 - day) % 7;
+      const secondSundayDate = 1 + daysToSunday + 7;
+      return Date.UTC(y, m, secondSundayDate, 10); // 2:00 AM Pacific wall ~ 10:00 UTC (PDT)
+    }
+    const spring = secondSunday(parts.yr, 2);   // second Sunday March
+    const fall = secondSunday(parts.yr, 10);    // first-ish Sunday Nov (see note)
+    // Fall transition is the FIRST Sunday in November.
+    const firstNov = new Date(Date.UTC(parts.yr, 10, 1));
+    const novDay = firstNov.getUTCDay();
+    const firstSundayNovDate = 1 + ((7 - novDay) % 7);
+    const fallCorrect = Date.UTC(parts.yr, 10, firstSundayNovDate, 10);
+
+    const wallUtc = Date.UTC(parts.yr, parts.mo - 1, parts.da, parts.hour, parts.minute);
+    // A value between spring and fall is within DST -> PDT (-420), else PST (-480).
+    // (The hour boundary is ignored here; shopgoodwill listing end times are
+    // typically not exactly at the transition hour, and the error would be <1h.)
+    if (wallUtc >= spring && wallUtc < fallCorrect) return -420;
+    return -480;
   }
 
   function detectFromCountdown() {
@@ -174,8 +232,19 @@
       }
     }
 
-    const endValue = toLocalInputToken(date, time);
-    return { endValue, title: readTitle(), url: window.location.href, id: itemId };
+    const parts = parseDateTimeToken(date, time);
+    // endValue: a datetime-local value for the confirmation dialog (wall-clock
+    // in Pacific; shown to the user unchanged). utcIso: the exact UTC instant
+    // we actually send to the dashboard so the stored end time is always right
+    // regardless of the browser's timezone.
+    const endValue = parts
+      ? (() => {
+          const pad = (n) => String(n).padStart(2, "0");
+          return `${parts.yr}-${pad(parts.mo)}-${pad(parts.da)}T${pad(parts.hour)}:${pad(parts.minute)}`;
+        })()
+      : null;
+    const utcIso = toUtcIso(parts);
+    return { endValue, utcIso, title: readTitle(), url: window.location.href, id: itemId };
   }
 
   function getDepth(el) {
@@ -270,10 +339,20 @@
       const ends = document.getElementById("gww-ends").value;
       if (!ends) { setMsg("Please enter the ending time shown on the page.", "gww-error"); return; }
       setMsg("Sending...");
+      // Recompute the UTC instant from the (possibly edited) dialog value,
+      // treating it as Pacific wall-clock time, so edits stay correct too.
+      let endsUtc = info.utcIso;
+      const edited = document.getElementById("gww-ends").value;
+      if (edited && info.utcIso) {
+        const m = edited.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+        if (m) {
+          endsUtc = toUtcIso({ yr: +m[1], mo: +m[2], da: +m[3], hour: +m[4], minute: +m[5] });
+        }
+      }
       const payload = {
         url: info.url,
         label: document.getElementById("gww-label").value.trim(),
-        endsAt: ends.replace("T", " "),
+        endsAt: endsUtc || ends.replace("T", " "),
         alertMinutes: Number(document.getElementById("gww-amin").value) || 10,
       };
       try {
