@@ -16,10 +16,37 @@ provide, and it never places or interferes with bids.
 - **Dashboard** — add items with a live, auto-sorted countdown; browser
   notification + spoken alert when one is about to end.
 - **Browser extension** — one-click "Add to Watchlist" on any listing page, with
-  the end time auto-filled and confirmed before saving.
-- **Phone push (Telegram)** — get an alert 10–15 minutes before an item ends,
-  with the countdown refreshed in the message as it ticks down.
+  the end time auto-filled and confirmed before saving. Download it, already
+  pre-configured, straight from the Settings page.
+- **Escalating Telegram reminders** — a first heads-up, a final-minutes "bid
+  now" nudge, and an "auction ended" notice, with the countdown refreshed in the
+  message as it ticks down. Reminders survive restarts (no duplicates, none
+  missed).
+- **DST-safe Pacific time** — end times are interpreted as Pacific Time with
+  correct daylight-saving handling.
 - **Docker-ready** — runs in a single container; data and settings persist.
+
+---
+
+## What's New
+
+See [CHANGELOG.md](CHANGELOG.md) for the full history.
+
+### v1.0.0
+
+- **Personalized extension download** — the Settings page now serves a browser
+  extension zip pre-configured to your dashboard's address.
+- **Escalating reminders + DST-safe time** — tiered Telegram pushes (heads-up,
+  final nudge, ended) and correct Pacific-time handling year-round.
+- **Notifier reliability** — sent-reminder state is persisted, so reminders
+  survive container restarts and never duplicate or go missing.
+- **Container logging** — notifier activity is visible in `docker logs`.
+- **Settings page** — configure Telegram, poll interval, and countdown refresh
+  in the UI (stored in `data/settings.json`).
+- **GHCR image + NAS deploy** — multi-arch image published to
+  `ghcr.io/lancetm714/shopgoodwill-watchlist` with a ready-made
+  `docker-compose.ghcr.yml`.
+- **Dashboard polish** — ShopGoodwill favicon and clearer setup docs.
 
 ---
 
@@ -228,9 +255,46 @@ For Docker, copy `.env.example` to `.env`, fill in your values, then
 ├── Dockerfile
 ├── docker-compose.yml
 ├── docker-compose.ghcr.yml
+├── CHANGELOG.md
 ├── .env.example
 └── requirements.txt
 ```
+
+---
+
+## Versioning & releases
+
+This project follows **[Semantic Versioning](https://semver.org/)** (`MAJOR.MINOR.PATCH`)
+and keeps a human-readable history in [CHANGELOG.md](CHANGELOG.md).
+
+- **MAJOR** — incompatible changes (config/API/settings format breaks).
+- **MINOR** — backward-compatible features.
+- **PATCH** — backward-compatible bug fixes.
+
+Each release is a **git tag** named `vX.Y.Z`. Pushing a tag:
+1. Triggers the [GHCR workflow](.github/workflows/docker-publish.yml), which
+   builds and publishes `ghcr.io/lancetm714/shopgoodwill-watchlist:vX.Y.Z`
+   (alongside `:latest`).
+2. Should be published as a **GitHub Release** with notes copied from
+   `CHANGELOG.md`.
+
+Keep the version in sync across:
+- The git tag / GitHub Release (`vX.Y.Z`)
+- `extension/manifest.json` → `version` (e.g. `X.Y.Z`)
+- The `## [X.Y.Z]` heading in `CHANGELOG.md`
+
+To cut a release:
+
+```bash
+# 1. Update CHANGELOG.md (move Unreleased items under the new version + date)
+# 2. Bump extension/manifest.json "version"
+git commit -am "Release vX.Y.Z"
+git tag vX.Y.Z
+git push origin main --tags
+```
+
+> Pin a NAS/desktop deploy to a specific version by changing the image tag in
+> `docker-compose.ghcr.yml` from `:latest` to `:vX.Y.Z`.
 
 ---
 
