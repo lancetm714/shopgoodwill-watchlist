@@ -28,6 +28,20 @@ provide, and it never places or interferes with bids.
 
 ---
 
+## Screenshots
+
+**Dashboard** — live countdowns, sorted by soonest to end, with ending-soon
+status badges:
+
+![Goodwill Watchlist dashboard](assets/dashboard.png)
+
+**Settings** — configure Telegram notifications and download the browser
+extension:
+
+![Goodwill Watchlist settings](assets/settings.png)
+
+---
+
 ## What's New
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
@@ -250,6 +264,7 @@ For Docker, copy `.env.example` to `.env`, fill in your values, then
 │   ├── notifier.py       Telegram poller + sender
 │   └── settings_store.py Settings persistence
 ├── extension/            Chrome / Edge / Firefox extension
+├── assets/               README screenshots
 ├── data/                 Runtime data (git-ignored; created on first run)
 ├── .github/workflows/    GHCR publish workflow (auto-push on main)
 ├── Dockerfile

@@ -249,7 +249,7 @@ async function loadNotifyStatus() {
     if (d.enabled) {
       el.innerHTML = '<span class="dot on"></span><span><b>Telegram notifications are on.</b> You\'ll get a push when an item is within its alert window (poll every ' + (d.pollSeconds || 30) + 's).</span>';
     } else {
-      el.innerHTML = '<span class="dot off"></span><span><b>Telegram notifications are off.</b> Add <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> env vars and restart.</span>';
+      el.innerHTML = '<span class="dot off"></span><span><b>Telegram notifications are off.</b> Enable them on the <a href="/settings">Settings</a> page.</span>';
     }
   } catch (e) {
     el.textContent = "Could not load notification status.";
