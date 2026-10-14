@@ -1,12 +1,14 @@
 import os
+import io
 import json
+import zipfile
 import threading
 import time
 import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template, send_file
 
 bp = Blueprint("main", __name__)
 
@@ -187,6 +189,57 @@ def test_settings():
 
     ok = notifier.send_test()
     return jsonify({"ok": ok})
+
+
+@bp.route("/extension.zip")
+def extension_zip():
+    # Build a personalized copy of the browser extension, configured to talk to
+    # whichever host the user is currently accessing this dashboard from, and
+    # serve it as a download. Makes "add the extension" easy from Settings.
+    base = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "extension"))
+    if not os.path.isdir(base):
+        return jsonify({"error": "extension folder not found"}), 404
+
+    host = request.host  # e.g. lmmedia.tail156d5.ts.net:6518
+    origin = request.host_url.rstrip("/")  # e.g. http://lmmedia.tail156d5.ts.net:6518
+
+    perms = [f"http://{host}/*", f"https://{host}/*",
+             "http://localhost:6518/*", "http://127.0.0.1:6518/*"]
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, _dirs, files in os.walk(base):
+            for fn in files:
+                full = os.path.join(root, fn)
+                rel = os.path.relpath(full, base).replace("\\", "/")
+                with open(full, "rb") as f:
+                    data = f.read()
+                if rel == "manifest.json":
+                    try:
+                        mf = json.loads(data.decode("utf-8"))
+                        mf["host_permissions"] = sorted(set(perms))
+                        data = json.dumps(mf, indent=2).encode("utf-8")
+                    except (ValueError, UnicodeDecodeError):
+                        pass
+                elif rel == "background.js":
+                    try:
+                        txt = data.decode("utf-8")
+                        txt = re.sub(
+                            r'const DEFAULT_DASHBOARD = "[^"]*";',
+                            f'const DEFAULT_DASHBOARD = "{origin}";',
+                            txt,
+                        )
+                        data = txt.encode("utf-8")
+                    except UnicodeDecodeError:
+                        pass
+                z.writestr(rel, data)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="goodwill-watchlist-extension.zip",
+    )
 
 
 @bp.route("/api/items", methods=["GET"])

@@ -1,9 +1,10 @@
 // Background service worker (MV3).
 // Receives "ADD_ITEM" messages from the content script and POSTs them to the
 // Goodwill Watchlist dashboard API. The dashboard URL is configurable and
-// defaults to the NAS instance.
+// defaults to localhost. (When downloaded from the Settings page, the default
+// is rewritten to that instance's address.)
 
-const DEFAULT_DASHBOARD = "http://lmmedia.tail156d5.ts.net:6518";
+const DEFAULT_DASHBOARD = "http://localhost:6518";
 
 async function getDashboardUrl() {
   const stored = await chrome.storage.local.get("dashboardUrl");

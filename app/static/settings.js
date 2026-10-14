@@ -80,4 +80,7 @@ testBtn.addEventListener("click", async () => {
   }
 });
 
+const extOriginEl = document.getElementById("ext-origin");
+if (extOriginEl) extOriginEl.textContent = window.location.origin;
+
 load();

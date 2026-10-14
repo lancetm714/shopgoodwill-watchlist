@@ -94,28 +94,42 @@ Adds a floating **"Add to Watchlist"** button on `shopgoodwill.com/item/*`
 pages. Click it, confirm (or edit) the ending time shown on the page, and it's
 added to your dashboard in one click — no copy/paste.
 
-### Install (unpacked)
+### Install (easiest: from the Settings page)
+
+1. Open the **Settings** page of your running dashboard (e.g.
+   `http://<your-host>:6518/settings`).
+2. Under **Browser extension**, click **Download extension (.zip)**. The
+   download is automatically pre-configured to talk to *that* dashboard — no
+   manual URL setup.
+3. Unzip it to a folder on this computer.
+4. Load it unpacked (below).
+
+### Load unpacked
 
 **Chrome / Edge / Brave**
 
 1. Open the extensions page (`chrome://extensions` or `edge://extensions`).
 2. Turn on **Developer mode** (top-right).
-3. Click **Load unpacked** and select the `extension/` folder from this repo.
+3. Click **Load unpacked** and select the unzipped folder.
 
 **Firefox**
 
 1. Open `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on** and select `extension/manifest.json`.
-   (Temporary add-ons unload when Firefox closes; for a permanent install you'd
-   need a signed/packaged build.)
+2. Click **Load Temporary Add-on** and select `manifest.json` in the unzipped
+   folder. (Temporary add-ons unload when Firefox closes; a permanent install
+   needs a signed/packaged build.)
+
+> Browsers don't allow true one-click installs outside their stores, so the
+> one-time "Load unpacked" step is required. If you prefer, you can instead load
+> the `extension/` folder straight from this repo.
 
 ### Configure the dashboard URL
 
-Click the extension's toolbar icon, set the dashboard URL (default
-`http://localhost:6518`), and save. Make sure the dashboard is running on that
-port first.
+The downloaded copy already points at the right dashboard. If you loaded the raw
+repo copy instead, click the extension's toolbar icon, set the dashboard URL
+(default `http://localhost:6518`), and save.
 
-> If you change the dashboard's port, update this URL too.
+> If you change the dashboard host/port, re-download the zip (or update this URL).
 
 ### Accuracy note
 

@@ -6,8 +6,7 @@
   "permissions": ["storage"],
   "host_permissions": [
     "http://localhost:6518/*",
-    "http://127.0.0.1:6518/*",
-    "http://lmmedia.tail156d5.ts.net:6518/*"
+    "http://127.0.0.1:6518/*"
   ],
   "background": {
     "service_worker": "background.js"

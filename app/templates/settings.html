@@ -59,6 +59,27 @@
     </div>
 
     <div id="notify-status" class="card status-card" style="margin-top:16px;">Checking…</div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Browser extension</h2>
+      <p class="hint" style="margin-top:0;">Add a floating <b>"Add to Watchlist"</b> button directly on ShopGoodwill listing pages. The downloaded copy is pre-configured to talk to <b>this</b> dashboard (<span id="ext-origin">…</span>), so there's nothing to set up.</p>
+
+      <div class="actions">
+        <a id="ext-download" class="btn primary" href="/extension.zip" download>Download extension (.zip)</a>
+      </div>
+
+      <hr style="margin:18px 0;border:none;border-top:1px solid var(--border);">
+
+      <h3 class="how-title">Install steps</h3>
+      <ol class="how-list">
+        <li>Click <b>Download extension (.zip)</b> above, then unzip it to a folder on this computer.</li>
+        <li>In Chrome, open <code>chrome://extensions</code> (Edge: <code>edge://extensions</code>).</li>
+        <li>Turn on <b>Developer mode</b> (top-right).</li>
+        <li>Click <b>Load unpacked</b> and select the unzipped folder.</li>
+      </ol>
+      <p class="hint">Firefox: download, unzip, then open <code>about:debugging#/runtime/this-firefox</code> → <b>Load Temporary Add-on</b> → pick <code>manifest.json</code>.</p>
+      <p class="hint">Browsers don't allow true one-click installs outside their stores, so "Load unpacked" (a one-time step) is required.</p>
+    </div>
   </section>
 
   <footer>
