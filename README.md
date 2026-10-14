@@ -32,7 +32,7 @@ provide, and it never places or interferes with bids.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
-### v1.0.0
+### v1.1.0
 
 - **Personalized extension download** — the Settings page now serves a browser
   extension zip pre-configured to your dashboard's address.

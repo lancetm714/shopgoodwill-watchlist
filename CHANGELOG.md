@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-10-14
+## [1.1.0] - 2026-10-14
 
 First tagged release.
 
@@ -43,5 +43,5 @@ First tagged release.
 - End times are stored as exact UTC, fixing a timezone offset bug.
 - Notifier activity is logged so it is visible in `docker logs`.
 
-[Unreleased]: https://github.com/lancetm714/shopgoodwill-watchlist/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/lancetm714/shopgoodwill-watchlist/releases/tag/v1.0.0
+[Unreleased]: https://github.com/lancetm714/shopgoodwill-watchlist/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lancetm714/shopgoodwill-watchlist/releases/tag/v1.1.0

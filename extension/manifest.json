@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Goodwill Watchlist Helper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Add items from a ShopGoodwill listing page to your local Goodwill Watchlist dashboard with one click. Reads the end time you're already viewing and lets you confirm before sending.",
   "permissions": ["storage"],
   "host_permissions": [
